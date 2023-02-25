@@ -43,13 +43,13 @@ theme:
       primary: blue
       accent: blue
       toggle:
-        icon: material/weather-sunny
+        icon: material/weather-night
         name: Switch to light mode
     - scheme: slate
       primary: black
       accent: black
       toggle:
-        icon: material/weather-night
+        icon: material/weather-sunny
         name: Switch to dark mode
   font:
     text: Roboto
