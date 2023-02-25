@@ -1,0 +1,93 @@
+# Copyright (c) 2016-2021 Martin Donath <martin.donath@squidfunk.com>
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+
+# Project information
+site_name: The Missing Documentation
+site_url: https://squidfunk.github.io/mkdocs-material/
+site_description: >-
+  Here you will find not documented or not really empfesized part of tool's documention which is essentials for the installation and maintaining.
+# Copyright
+copyright: Copyright &copy; mbaykara
+
+# Configuration
+theme:
+  name: material
+  custom_dir: theme
+
+  # Default values, taken from mkdocs_theme.yml
+  language: en
+  features:
+    # - navigation.instant
+    - navigation.sections
+    - navigation.tabs
+    - navigation.indexes
+  palette:
+    - scheme: default
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  favicon: assets/favicon.ico
+  logo: assets/cloud.png
+
+# Plugins
+plugins:
+  - mermaid2:
+      version: 8.6.4
+  - markdownextradata:
+      jinja_options:
+        variable_start_string: "{%{"
+        variable_end_string: "}%}"
+
+# Page tree
+nav:
+  - Home: index.md
+  - Kubernetes:
+    - Overview: k8s/overview.md
+  - CI/CD:
+    - Overview: cicd/overview.md
+    - ArgoCD: cicd/argocd/installation.md
+    - Flux: cicd/flux/flux.md
+  - Infrastructure:
+    - Overview: infrastructure/overview.md
+  - Cloud:
+    - Overview: cloud/overview.md
+    - CloudNativeApps: 
+      - Security:
+        - Aquasec: cloud/apps/security/aquasec/overview.md 
+        - Neuvector: cloud/apps/security/neuvector/installation.md
+  - Rancher: 
+    - Overview: rancher/rancher.md
+    - RKE2-Installation: rancher/rke2/rke2.md
+    - RKE2-Air-Gapped: rancher/air-gapped/air-gapped.md
+
+
+extra:
+  generator: false

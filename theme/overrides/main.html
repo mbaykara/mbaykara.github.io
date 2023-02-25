@@ -1,0 +1,32 @@
+{#-
+  This file was automatically generated - do not edit
+-#}
+{% extends "base.html" %}
+{% block extrahead %}
+  {% set title = config.site_name %}
+  {% if page and page.title and not page.is_homepage %}
+    {% set title = config.site_name ~ " - " ~ page.title | striptags %}
+  {% endif %}
+  {% set image = config.site_url ~ 'assets/images/banner.png' %}
+  <link rel="stylesheet" href="{{ 'overrides/assets/stylesheets/main.css' | url }}">
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ base_url }}/css/lightgallery.min.css">
+{% endblock styles %}
+
+{% block libs %}
+{{ super() }}
+<script src="{{ base_url }}/js/lightgallery.min.js"></script>
+{% endblock libs %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+var elements = document.getElementsByClassName("lightgallery");
+for(var i=0; i<elements.length; i++) {
+    lightGallery(elements[i]);
+}
+</script>
+{% endblock scripts %}
