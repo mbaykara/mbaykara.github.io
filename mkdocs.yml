@@ -40,14 +40,14 @@ theme:
     - navigation.indexes
   palette:
     - scheme: default
-      primary: cyan
-      accent: cyan
+      primary: blue
+      accent: blue
       toggle:
-        icon: material/toggle-switch-off-outline
+        icon: material/weather-night
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: teal
+      accent: teal
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode
