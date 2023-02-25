@@ -43,14 +43,14 @@ theme:
       primary: blue
       accent: blue
       toggle:
-        icon: material/weather-night
-        name: Switch to dark mode
+        icon: material/weather-sunny
+        name: Switch to light mode
     - scheme: slate
       primary: black
       accent: black
       toggle:
-        icon: material/weather-sunny
-        name: Switch to light mode
+        icon: material/weather-night
+        name: Switch to dark mode
   font:
     text: Roboto
     code: Roboto Mono
