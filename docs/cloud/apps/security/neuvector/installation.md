@@ -6,9 +6,17 @@ title: Neuvector
 # Neuvector
 
 The neuvector is a security tool by SUSE.
+Via [helm chart][1] in namespace `cattle-neuvector-system`
+custom.yaml
+```yaml
+k3s:
+  enabled: true
+controller:
+  ranchersso:
+    enabled: true
+global:
+  cattle:
+    url: https://rancher.com
+```
 
-* Namespace musst be cattle-neuvector-system via helm install values if it is in rancher the k3s socket must be enabled
-* global.cattle.url must be setted if ranchersso: enabled is
-
-
-
+[1]: https://artifacthub.io/packages/helm/neuvectorcharts/core
