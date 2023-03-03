@@ -58,6 +58,7 @@ theme:
 
 # Plugins
 plugins:
+  - render_swagger
   - mermaid2:
       version: 8.6.4
   - markdownextradata:

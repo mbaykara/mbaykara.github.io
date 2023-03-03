@@ -1,4 +1,4 @@
-name: ci 
+name: My private but public docs via GH Pages
 on:
   push:
     branches:
@@ -10,13 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.x
-      - uses: actions/cache@v2
-        with:
-          key: ${{ github.ref }}
-          path: .cache
-      - run: pip install mkdocs-material mkdocs-mermaid2-plugin mkdocs-markdownextradata-plugin
-      - run: mkdocs gh-deploy   --remote-branch mkdocs --force 
+      - name: Deploy docs
+        uses: mhausenblas/mkdocs-deploy-gh-pages@master
+        # Or use mhausenblas/mkdocs-deploy-gh-pages@nomaterial to build without the mkdocs-material theme
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXTRA_PACKAGES: build-base
+          REQUIREMENTS: .mkdocs-req/requirements.txt
+          
 
