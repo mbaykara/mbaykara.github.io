@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://squidfunk.github.io/mkdocs-material/</loc>
+         <lastmod>2023-12-21</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://squidfunk.github.io/mkdocs-material/about/overview/</loc>
+         <lastmod>2023-12-21</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://squidfunk.github.io/mkdocs-material/blogs/overview/</loc>
+         <lastmod>2023-12-21</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://squidfunk.github.io/mkdocs-material/contact/overview/</loc>
+         <lastmod>2023-12-21</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://squidfunk.github.io/mkdocs-material/dienstleistungen/overview/</loc>
+         <lastmod>2023-12-21</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://squidfunk.github.io/mkdocs-material/infrastructure/overview/</loc>
+         <lastmod>2023-12-21</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+</urlset>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Contact Form</title>
+<link rel="stylesheet" href="styles.css">
+<!-- Link to your CSS file -->
+</head>
+<body style="font-family: Arial, sans-serif;
+    background-color: #778899;
+    margin: 0;
+    padding: 0;">
+    <div class="contact-form" style="max-width: 400px;
+    margin: 50px auto;
+    background-color: #333; 
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    color: #fff;">
+        <h2 style="text-align: center;
+    margin-bottom: 20px;">Contact Me</h2>
+        <form action="https://formspree.io/f/baykara@scalewisely.de" method="POST" style="display: flex;
+    flex-direction: column;">
+            <label for="name" style="margin-bottom: 5px;">Name:</label>
+            <input type="text" id="name" name="name" required style="width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background-color: #fff; 
+    color: #333;"><br><label for="email" style="margin-bottom: 5px;">Email:</label>
+            <input type="email" id="email" name="email" required style="width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background-color: #fff; 
+    color: #333;"><br><label for="message" style="margin-bottom: 5px;">Message:</label><br><textarea id="message" name="message" required style="width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background-color: #fff; 
+    color: #333; 
+    resize: vertical; 
+    min-height: 100px;"></textarea><br><input type="submit" value="Send" style="width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 3px;
+    background-color: #007bff;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s;">
+</form>
+    </div>
+</body>
+</html>
