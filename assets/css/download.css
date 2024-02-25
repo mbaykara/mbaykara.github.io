@@ -1,19 +1,18 @@
-/* Position the container at the top right corner of the page */
 .download-button-container {
-    position: fixed; 
-    top: 0; 
-    right: 0; 
-    padding: 20px; 
+  position: fixed; 
+  top: 0; 
+  right: 0; 
+  padding: 30px; 
 }
 .download-button {
-    display: inline-block; 
-    padding: 10px 20px; 
-    background-color: #007bff; 
-    color: white; 
-    text-decoration: none; 
-    border-radius: 5px;
-    font-size: 16px; 
+  display: inline-block;
+  padding: 15px 20px;
+  background-color: #3d628a;
+  color: white;
+  text-decoration: none;
+  border-radius: 10px;
+  font-size: 26px;
 }
 .download-button:hover {
-    background-color: #0056b3; /* Darker shade for hover effect */
+  background-color: #353d4e; 
 }
