@@ -1,6 +1,0 @@
-mkdocs-render-swagger-plugin
-mkdocs-material
-mkdocs-mermaid2-plugin 
-mkdocs-markdownextradata-plugin
-# mkdocs-dracula-theme
-# mkdocs-cinder
