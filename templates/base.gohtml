@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }} - Engineering Blog</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1d1f21;
+            color: #c5c8c6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #282a2e;
+            border: 1px solid #373b41;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        }
+        header {
+            text-align: center;
+            padding: 10px 0;
+            margin-bottom: 30px;
+            background-color: #373b41;
+            color: #81a2be;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        nav ul {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+        nav ul li {
+            margin: 0 50px;
+        }
+        nav ul li a {
+            text-decoration: none;
+            color: #8abeb7;
+        }
+        nav ul li a:hover {
+            color: #b5bd68;
+        }
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px 0;
+            background-color: #373b41;
+            color: #81a2be;
+        }
+        .terminal-text {
+            font-family: 'Courier New', Courier, monospace;
+            color: #b5bd68;
+            padding: 10px;
+            background-color: #1d1f21;
+            border: 1px solid #373b41;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <h1 style="font-size: 2.5em; color: #b5bd68;">Infrastructure Blog</h1> 
+        <h2 style="font-size: 1.5em; color: #8abeb7; margin-top: 5px; font-style: italic;">Weniger aber Besser</h2>
+        <p style="font-size: 1em; color: #c5c8c6; margin: 0;">— Dieter Rams -</p>
+        <nav>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="terminal-text">
+            {{ block "content" . }}{{ end }}
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Mehmet Ali Baykara Blog. All rights reserved.</p>
+        <div style="margin-top: 10px;">
+            <a href="mailto:your-email@example.com" style="color: #81a2be; text-decoration: none; margin-right: 10px;">
+                <i class="fas fa-envelope"></i> Email
+            </a>
+            <a href="https://www.linkedin.com/in/mbaykara/" target="_blank" style="color: #81a2be; text-decoration: none;">
+                <i class="fab fa-linkedin"></i> LinkedIn
+            </a>
+        </div>
+    </footer>
+</body>
+</html>

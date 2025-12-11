@@ -1,0 +1,16 @@
+{{ define "content" }}
+    <div class="mb-4">
+        <h2 class="text-2xl font-bold" style="color: #b5bd68;">Blog Posts</h2>
+        <ul class="mt-4" style="color: #c5c8c6;">
+            {{ range .Posts }}
+                <li class="mt-2">
+                    <a href="/post/{{ .Slug }}" style="color: #81a2be; text-decoration: none;" onmouseover="this.style.color='#b5bd68';" onmouseout="this.style.color='#81a2be';">
+                        <span class="cursor-blink"></span> {{ .Title }} - <span style="color: #8abeb7;">{{ .Date.Format "Jan 2, 2006" }}</span>
+                    </a>
+                </li>
+            {{ else }}
+                <p style="color: #b5bd68;">No posts available</p>
+            {{ end }}
+        </ul>
+    </div>
+{{ end }}

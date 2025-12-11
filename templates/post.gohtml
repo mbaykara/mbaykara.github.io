@@ -1,0 +1,12 @@
+{{ define "content" }}
+    <h2 class="text-3xl font-bold" style="color: #b5bd68;">{{ .Title }}</h2>
+    <p class="text-green-500 mb-4" style="color: #8abeb7;">Posted on {{ .Date.Format "Jan 2, 2006" }}</p>
+    
+    <article style="color: #c5c8c6; line-height: 1.6;">
+        {{ .Content }}
+    </article>
+
+    <div class="mt-8">
+        <a href="/" style="color: #81a2be; text-decoration: none;" onmouseover="this.style.color='#b5bd68';" onmouseout="this.style.color='#81a2be';">← Back to home</a>
+    </div>
+{{ end }}
