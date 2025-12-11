@@ -1,32 +1,3 @@
 # Finalizers
-Finalizers are namespaced keys that tell Kubernetes to wait until specific conditions are met before it fully deletes resources marked for deletion. Finalizers alert controllers to clean up resources the deleted object owned.
 
-When you tell Kubernetes to delete an object that has finalizers specified for it, the Kubernetes API marks the object for deletion by populating .metadata.deletionTimestamp, and returns a 202 status code (HTTP "Accepted"). The target object remains in a terminating state while the control plane, or other components, take the actions defined by the finalizers. After these actions are complete, the controller removes the relevant finalizers from the target object. When the metadata.finalizers field is empty, Kubernetes considers the deletion complete and deletes the object.
-
-You can use finalizers to control garbage collection of resources. For example, you can define a finalizer to clean up related resources or infrastructure before the controller deletes the target resource.
-
-```go
-func Hello(goo string){
-  fmt.Println("Hello")
-}
-```
-You can use finalizers to control garbage collection of objects by alerting controllers to perform specific cleanup tasks before deleting the target resource.
-
-Finalizers don't usually specify the code to execute. Instead, they are typically lists of keys on a specific resource similar to annotations. Kubernetes specifies some finalizers automatically, but you can also specify your own.
-
-How finalizers work
-When you create a resource using a manifest file, you can specify finalizers in the metadata.finalizers field. When you attempt to delete the resource, the API server handling the delete request notices the values in the finalizers field and does the following:
-
-Modifies the object to add a metadata.deletionTimestamp field with the time you started the deletion.
-Prevents the object from being removed until all items are removed from its metadata.finalizers field
-Returns a 202 status code (HTTP "Accepted")
-The controller managing that finalizer notices the update to the object setting the metadata.deletionTimestamp, indicating deletion of the object has been requested. The controller then attempts to satisfy the requirements of the finalizers specified for that resource. Each time a finalizer condition is satisfied, the controller removes that key from the resource's finalizers field. When the finalizers field is emptied, an object with a deletionTimestamp field set is automatically deleted. You can also use finalizers to prevent deletion of unmanaged resources.
-
-A common example of a finalizer is kubernetes.io/pv-protection, which prevents accidental deletion of PersistentVolume objects. When a PersistentVolume object is in use by a Pod, Kubernetes adds the pv-protection finalizer. If you try to delete the PersistentVolume, it enters a Terminating status, but the controller can't delete it because the finalizer exists. When the Pod stops using the PersistentVolume, Kubernetes clears the pv-protection finalizer, and the controller deletes the volume.
-
-Note:
-When you DELETE an object, Kubernetes adds the deletion timestamp for that object and then immediately starts to restrict changes to the .metadata.finalizers field for the object that is now pending deletion. You can remove existing finalizers (deleting an entry from the finalizers list) but you cannot add a new finalizer. You also cannot modify the deletionTimestamp for an object once it is set.
-
-After the deletion is requested, you can not resurrect this object. The only way is to delete it and make a new similar object.
-
-Owner references, lab
+Loading ...
