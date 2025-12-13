@@ -1,4 +1,5 @@
-# Infrastructure Blog
+
+# Personal Blog
 
 A minimalist Markdown-based blog built with Go.
 
@@ -8,7 +9,9 @@ A minimalist Markdown-based blog built with Go.
 - Static site generation for GitHub Pages
 - Dark terminal-inspired theme
 
-## Development Server
+## Usage
+
+### Development Server
 
 ```bash
 go run main.go

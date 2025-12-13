@@ -77,8 +77,100 @@ func CleanTitle(filename string) string {
 func LoadBlogPosts() ([]PostData, error) {
 	var posts []PostData
 
-	// Get all markdown files from the "content" directory
+	// Get all markdown files from the "posts" directory
 	files, err := filepath.Glob("posts/*.md")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		// Extract the filename without the extension to use as the Title and Slug
+		filename := filepath.Base(file)
+		slug := strings.TrimSuffix(filename, filepath.Ext(filename))
+		title := CleanTitle(filename)
+
+		// Use the file's ModTime as the post's Date
+		fileInfo, err := os.Stat(file)
+		if err != nil {
+			return nil, err
+		}
+
+		// Load and convert the Markdown content to HTML
+		content, err := RenderMarkdown(file)
+		if err != nil {
+			return nil, err
+		}
+
+		// Create a Post object
+		post := PostData{
+			Title:   title,
+			Date:    fileInfo.ModTime(),
+			Slug:    slug,
+			Content: content,
+		}
+		posts = append(posts, post)
+	}
+
+	// Sort posts by date (latest first)
+	sort.Slice(posts, func(i, j int) bool {
+		return posts[i].Date.After(posts[j].Date)
+	})
+
+	return posts, nil
+}
+
+// LoadThoughtsPosts loads thoughts blog posts from Markdown files and sorts them by date.
+func LoadThoughtsPosts() ([]PostData, error) {
+	var posts []PostData
+
+	// Get all markdown files from the "thoughts" directory
+	files, err := filepath.Glob("thoughts/*.md")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range files {
+		// Extract the filename without the extension to use as the Title and Slug
+		filename := filepath.Base(file)
+		slug := strings.TrimSuffix(filename, filepath.Ext(filename))
+		title := CleanTitle(filename)
+
+		// Use the file's ModTime as the post's Date
+		fileInfo, err := os.Stat(file)
+		if err != nil {
+			return nil, err
+		}
+
+		// Load and convert the Markdown content to HTML
+		content, err := RenderMarkdown(file)
+		if err != nil {
+			return nil, err
+		}
+
+		// Create a Post object
+		post := PostData{
+			Title:   title,
+			Date:    fileInfo.ModTime(),
+			Slug:    slug,
+			Content: content,
+		}
+		posts = append(posts, post)
+	}
+
+	// Sort posts by date (latest first)
+	sort.Slice(posts, func(i, j int) bool {
+		return posts[i].Date.After(posts[j].Date)
+	})
+
+	return posts, nil
+}
+
+// LoadMiscellaneousPosts loads miscellaneous blog posts from Markdown files and sorts them by date.
+func LoadMiscellaneousPosts() ([]PostData, error) {
+	var posts []PostData
+
+	// Get all markdown files from the "miscellaneous" directory
+	files, err := filepath.Glob("miscellaneous/*.md")
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +223,8 @@ func main() {
 
 	http.HandleFunc("/", HomeHandler)
 	http.HandleFunc("/about", AboutHandler)
-	http.HandleFunc("/contact", ContactHandler)
+	http.HandleFunc("/thoughts", ThoughtsHandler)
+	http.HandleFunc("/miscellaneous", MiscellaneousHandler)
 	http.HandleFunc("/post/", PostHandler)
 	fmt.Println("Server is running...")
 	log.Fatal(http.ListenAndServe(":8090", nil))
@@ -159,21 +252,73 @@ func GenerateStaticSite(outputDir string) error {
 		return err
 	}
 
-	// Generate contact.html
-	if err := generatePage(outputDir, "contact.html", func(w http.ResponseWriter) error {
-		ContactHandler(w, &http.Request{})
+	// Generate thoughts.html
+	if err := generatePage(outputDir, "thoughts.html", func(w http.ResponseWriter) error {
+		ThoughtsHandler(w, &http.Request{})
 		return nil
 	}); err != nil {
 		return err
 	}
 
-	// Generate post pages
+	// Generate miscellaneous.html
+	if err := generatePage(outputDir, "miscellaneous.html", func(w http.ResponseWriter) error {
+		MiscellaneousHandler(w, &http.Request{})
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// Generate post pages from posts directory
 	files, err := filepath.Glob("posts/*.md")
 	if err != nil {
 		return err
 	}
 
 	for _, file := range files {
+		slug := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+		// Generate as post/slug/index.html for GitHub Pages clean URLs
+		postPath := filepath.Join("post", slug, "index.html")
+		reqURL, _ := url.Parse("/post/" + slug)
+		req := &http.Request{
+			URL: reqURL,
+		}
+		if err := generatePage(outputDir, postPath, func(w http.ResponseWriter) error {
+			PostHandler(w, req)
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Generate post pages from thoughts directory
+	thoughtsFiles, err := filepath.Glob("thoughts/*.md")
+	if err != nil {
+		return err
+	}
+
+	for _, file := range thoughtsFiles {
+		slug := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+		// Generate as post/slug/index.html for GitHub Pages clean URLs
+		postPath := filepath.Join("post", slug, "index.html")
+		reqURL, _ := url.Parse("/post/" + slug)
+		req := &http.Request{
+			URL: reqURL,
+		}
+		if err := generatePage(outputDir, postPath, func(w http.ResponseWriter) error {
+			PostHandler(w, req)
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Generate post pages from miscellaneous directory
+	miscFiles, err := filepath.Glob("miscellaneous/*.md")
+	if err != nil {
+		return err
+	}
+
+	for _, file := range miscFiles {
 		slug := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 		// Generate as post/slug/index.html for GitHub Pages clean URLs
 		postPath := filepath.Join("post", slug, "index.html")
@@ -243,14 +388,6 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
-	// data := struct {
-	// 	Title string
-	// 	Post  PostData
-	// }{
-	// 	Title: post.Title,
-	// 	Post:  post,
-	// }
-	// fmt.Println(data)
 
 	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "base.gohtml"), filepath.Join("templates", "post.gohtml")))
 	if err := tmpl.Execute(w, post); err != nil {
@@ -260,11 +397,18 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoadPost(slug string) (PostData, error) {
-	// Find the Markdown file with the given slug
+	// Try to find the post in posts directory first
 	file := filepath.Join("posts", slug+".md")
-	if _,
-		err := os.Stat(file); os.IsNotExist(err) {
-		return PostData{}, err
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		// If not found, try thoughts directory
+		file = filepath.Join("thoughts", slug+".md")
+		if _, err := os.Stat(file); os.IsNotExist(err) {
+			// If not found, try miscellaneous directory
+			file = filepath.Join("miscellaneous", slug+".md")
+			if _, err := os.Stat(file); os.IsNotExist(err) {
+				return PostData{}, err
+			}
+		}
 	}
 
 	// Load and convert the Markdown content to HTML
@@ -302,7 +446,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := TemplateData{
-		Title: "My Blog",
+		Title: "Home",
 		Posts: posts,
 	}
 
@@ -334,22 +478,38 @@ func AboutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ContactHandler(w http.ResponseWriter, r *http.Request) {
-	content, err := RenderMarkdown("nav/contact.md")
+// ThoughtsHandler renders the thoughts blog posts page.
+func ThoughtsHandler(w http.ResponseWriter, r *http.Request) {
+	posts, err := LoadThoughtsPosts()
 	if err != nil {
-		http.Error(w, "Error loading contact page", http.StatusInternalServerError)
-		return
+		log.Fatal(err)
 	}
-	data := struct {
-		Title   string
-		Content template.HTML
-	}{
-		Title:   "Contact Me",
-		Content: content,
+
+	data := TemplateData{
+		Title: "Thoughts",
+		Posts: posts,
 	}
-	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "base.gohtml"), filepath.Join("templates", "contact.gohtml")))
+
+	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "base.gohtml"), filepath.Join("templates", "thoughts.gohtml")))
 	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, "Error executing template", http.StatusInternalServerError)
-		return
+		log.Fatal(err)
+	}
+}
+
+// MiscellaneousHandler renders the miscellaneous blog posts page.
+func MiscellaneousHandler(w http.ResponseWriter, r *http.Request) {
+	posts, err := LoadMiscellaneousPosts()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	data := TemplateData{
+		Title: "Miscellaneous",
+		Posts: posts,
+	}
+
+	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "base.gohtml"), filepath.Join("templates", "miscellaneous.gohtml")))
+	if err := tmpl.Execute(w, data); err != nil {
+		log.Fatal(err)
 	}
 }

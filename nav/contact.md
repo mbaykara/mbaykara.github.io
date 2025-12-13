@@ -1,1 +1,0 @@
-Email: mehmetalibaykara@gmail.com
