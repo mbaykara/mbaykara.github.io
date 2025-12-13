@@ -20,6 +20,12 @@ import (
 	"golang.org/x/text/language"
 )
 
+// PostFrontmatter represents the frontmatter data in markdown files.
+type PostFrontmatter struct {
+	Title string    `yaml:"title"`
+	Date  time.Time `yaml:"date"`
+}
+
 // Post represents a blog post with a title, date, and content.
 type PostData struct {
 	Title   string
@@ -34,9 +40,69 @@ type TemplateData struct {
 	Posts []PostData
 }
 
-// RenderMarkdown converts Markdown content to HTML.
+// LoadPostFromFile loads a post from a file, parsing frontmatter for title and date.
+func LoadPostFromFile(filePath string) (PostData, error) {
+	mdBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return PostData{}, err
+	}
+
+	// Parse frontmatter
+	var fm PostFrontmatter
+	remainingMd, err := frontmatter.Parse(strings.NewReader(string(mdBytes)), &fm)
+	if err != nil {
+		// If frontmatter parsing fails, continue with empty frontmatter
+		remainingMd = mdBytes
+		fm = PostFrontmatter{}
+	}
+
+	// Get file info for fallback date
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return PostData{}, err
+	}
+
+	// Extract slug from filename
+	filename := filepath.Base(filePath)
+	slug := strings.TrimSuffix(filename, filepath.Ext(filename))
+
+	// Determine title: use frontmatter title, or cleaned filename
+	title := fm.Title
+	if title == "" {
+		title = CleanTitle(filename)
+	}
+
+	// Determine date: use frontmatter date, or file modification time
+	date := fm.Date
+	if date.IsZero() {
+		date = fileInfo.ModTime()
+	}
+
+	// Convert markdown to HTML
+	markdown := goldmark.New(
+		goldmark.WithExtensions(
+			highlighting.NewHighlighting(
+				highlighting.WithStyle("dracula"),
+			),
+		),
+	)
+	var buf bytes.Buffer
+	err = markdown.Convert([]byte(remainingMd), &buf)
+	if err != nil {
+		return PostData{}, err
+	}
+
+	return PostData{
+		Title:   title,
+		Date:    date,
+		Slug:    slug,
+		Content: template.HTML(buf.String()),
+	}, nil
+}
+
+// RenderMarkdown converts Markdown content to HTML (kept for backward compatibility).
 func RenderMarkdown(filePath string) (template.HTML, error) {
-	md, err := os.ReadFile(filePath)
+	mdBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
@@ -48,13 +114,14 @@ func RenderMarkdown(filePath string) (template.HTML, error) {
 			),
 		),
 	)
-	remainingMd, err := frontmatter.Parse(strings.NewReader(string(md)), &md)
+	var fm PostFrontmatter
+	remainingMd, err := frontmatter.Parse(strings.NewReader(string(mdBytes)), &fm)
 	if err != nil {
-		panic(err)
+		remainingMd = mdBytes
 	}
 
 	var buf bytes.Buffer
-	err = markdown.Convert([]byte(remainingMd), &buf)
+	err = markdown.Convert(remainingMd, &buf)
 	if err != nil {
 		panic(err)
 	}
@@ -84,29 +151,9 @@ func LoadBlogPosts() ([]PostData, error) {
 	}
 
 	for _, file := range files {
-		// Extract the filename without the extension to use as the Title and Slug
-		filename := filepath.Base(file)
-		slug := strings.TrimSuffix(filename, filepath.Ext(filename))
-		title := CleanTitle(filename)
-
-		// Use the file's ModTime as the post's Date
-		fileInfo, err := os.Stat(file)
+		post, err := LoadPostFromFile(file)
 		if err != nil {
 			return nil, err
-		}
-
-		// Load and convert the Markdown content to HTML
-		content, err := RenderMarkdown(file)
-		if err != nil {
-			return nil, err
-		}
-
-		// Create a Post object
-		post := PostData{
-			Title:   title,
-			Date:    fileInfo.ModTime(),
-			Slug:    slug,
-			Content: content,
 		}
 		posts = append(posts, post)
 	}
@@ -130,29 +177,9 @@ func LoadThoughtsPosts() ([]PostData, error) {
 	}
 
 	for _, file := range files {
-		// Extract the filename without the extension to use as the Title and Slug
-		filename := filepath.Base(file)
-		slug := strings.TrimSuffix(filename, filepath.Ext(filename))
-		title := CleanTitle(filename)
-
-		// Use the file's ModTime as the post's Date
-		fileInfo, err := os.Stat(file)
+		post, err := LoadPostFromFile(file)
 		if err != nil {
 			return nil, err
-		}
-
-		// Load and convert the Markdown content to HTML
-		content, err := RenderMarkdown(file)
-		if err != nil {
-			return nil, err
-		}
-
-		// Create a Post object
-		post := PostData{
-			Title:   title,
-			Date:    fileInfo.ModTime(),
-			Slug:    slug,
-			Content: content,
 		}
 		posts = append(posts, post)
 	}
@@ -176,29 +203,9 @@ func LoadMiscellaneousPosts() ([]PostData, error) {
 	}
 
 	for _, file := range files {
-		// Extract the filename without the extension to use as the Title and Slug
-		filename := filepath.Base(file)
-		slug := strings.TrimSuffix(filename, filepath.Ext(filename))
-		title := CleanTitle(filename)
-
-		// Use the file's ModTime as the post's Date
-		fileInfo, err := os.Stat(file)
+		post, err := LoadPostFromFile(file)
 		if err != nil {
 			return nil, err
-		}
-
-		// Load and convert the Markdown content to HTML
-		content, err := RenderMarkdown(file)
-		if err != nil {
-			return nil, err
-		}
-
-		// Create a Post object
-		post := PostData{
-			Title:   title,
-			Date:    fileInfo.ModTime(),
-			Slug:    slug,
-			Content: content,
 		}
 		posts = append(posts, post)
 	}
@@ -411,31 +418,8 @@ func LoadPost(slug string) (PostData, error) {
 		}
 	}
 
-	// Load and convert the Markdown content to HTML
-	content, err := RenderMarkdown(file)
-	if err != nil {
-		return PostData{}, err
-	}
-
-	// Extract the filename without the extension to use as the Title
-	filename := filepath.Base(file)
-	title := CleanTitle(filename)
-
-	// Use the file's ModTime as the post's Date
-	fileInfo, err := os.Stat(file)
-	if err != nil {
-		return PostData{}, err
-	}
-
-	// Create a Post object
-	post := PostData{
-		Title:   title,
-		Date:    fileInfo.ModTime(),
-		Slug:    slug,
-		Content: content,
-	}
-
-	return post, nil
+	// Load post using the helper function that parses frontmatter
+	return LoadPostFromFile(file)
 }
 
 // HomeHandler renders the home page with blog posts.

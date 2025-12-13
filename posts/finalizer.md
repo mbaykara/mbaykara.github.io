@@ -1,3 +1,6 @@
-# Finalizers
+---
+title: Finalizer
+date: 2025-11-11T10:30:00Z
+---
 
-Loading ...
+# How Kubernetes remove objects?
