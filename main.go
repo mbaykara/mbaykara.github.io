@@ -173,11 +173,6 @@ func LoadThoughtsPosts() ([]PostData, error) {
 	return loadPostsFromDirectory("thoughts/*.md")
 }
 
-// LoadMiscellaneousPosts loads miscellaneous blog posts from Markdown files and sorts them by date.
-func LoadMiscellaneousPosts() ([]PostData, error) {
-	return loadPostsFromDirectory("miscellaneous/*.md")
-}
-
 func main() {
 	// Check if we should generate static files instead of running a server
 	if len(os.Args) > 1 && os.Args[1] == "--generate" {
@@ -191,7 +186,6 @@ func main() {
 	http.HandleFunc("/", HomeHandler)
 	http.HandleFunc("/about", AboutHandler)
 	http.HandleFunc("/thoughts", ThoughtsHandler)
-	http.HandleFunc("/miscellaneous", MiscellaneousHandler)
 	http.HandleFunc("/post/", PostHandler)
 	fmt.Println("Server is running...")
 	log.Fatal(http.ListenAndServe(":8090", nil))
@@ -226,15 +220,6 @@ func GenerateStaticSite(outputDir string) error {
 	}); err != nil {
 		return err
 	}
-
-	// Generate miscellaneous.html
-	if err := generatePage(outputDir, "miscellaneous.html", func(w http.ResponseWriter) error {
-		MiscellaneousHandler(w, &http.Request{})
-		return nil
-	}); err != nil {
-		return err
-	}
-
 	// Generate post pages from posts directory
 	files, err := filepath.Glob("posts/*.md")
 	if err != nil {
@@ -264,28 +249,6 @@ func GenerateStaticSite(outputDir string) error {
 	}
 
 	for _, file := range thoughtsFiles {
-		slug := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
-		// Generate as post/slug/index.html for GitHub Pages clean URLs
-		postPath := filepath.Join("post", slug, "index.html")
-		reqURL, _ := url.Parse("/post/" + slug)
-		req := &http.Request{
-			URL: reqURL,
-		}
-		if err := generatePage(outputDir, postPath, func(w http.ResponseWriter) error {
-			PostHandler(w, req)
-			return nil
-		}); err != nil {
-			return err
-		}
-	}
-
-	// Generate post pages from miscellaneous directory
-	miscFiles, err := filepath.Glob("miscellaneous/*.md")
-	if err != nil {
-		return err
-	}
-
-	for _, file := range miscFiles {
 		slug := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 		// Generate as post/slug/index.html for GitHub Pages clean URLs
 		postPath := filepath.Join("post", slug, "index.html")
@@ -371,11 +334,7 @@ func LoadPost(slug string) (PostData, error) {
 		// If not found, try thoughts directory
 		file = filepath.Join("thoughts", slug+".md")
 		if _, err := os.Stat(file); os.IsNotExist(err) {
-			// If not found, try miscellaneous directory
-			file = filepath.Join("miscellaneous", slug+".md")
-			if _, err := os.Stat(file); os.IsNotExist(err) {
-				return PostData{}, err
-			}
+			return PostData{}, err
 		}
 	}
 
@@ -416,11 +375,6 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 // ThoughtsHandler renders the thoughts blog posts page.
 func ThoughtsHandler(w http.ResponseWriter, r *http.Request) {
 	postsHandler(w, LoadThoughtsPosts, "Thoughts", "thoughts.gohtml")
-}
-
-// MiscellaneousHandler renders the miscellaneous blog posts page.
-func MiscellaneousHandler(w http.ResponseWriter, r *http.Request) {
-	postsHandler(w, LoadMiscellaneousPosts, "Miscellaneous", "miscellaneous.gohtml")
 }
 
 // AboutHandler serves the About page.
