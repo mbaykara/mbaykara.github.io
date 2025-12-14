@@ -140,16 +140,13 @@ func CleanTitle(filename string) string {
 	return title
 }
 
-// LoadBlogPosts loads the blog posts from Markdown files and sorts them by date.
-func LoadBlogPosts() ([]PostData, error) {
-	var posts []PostData
-
-	// Get all markdown files from the "posts" directory
-	files, err := filepath.Glob("posts/*.md")
+func loadPostsFromDirectory(pattern string) ([]PostData, error) {
+	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
 	}
 
+	var posts []PostData
 	for _, file := range files {
 		post, err := LoadPostFromFile(file)
 		if err != nil {
@@ -164,58 +161,21 @@ func LoadBlogPosts() ([]PostData, error) {
 	})
 
 	return posts, nil
+}
+
+// LoadBlogPosts loads the blog posts from Markdown files and sorts them by date.
+func LoadBlogPosts() ([]PostData, error) {
+	return loadPostsFromDirectory("posts/*.md")
 }
 
 // LoadThoughtsPosts loads thoughts blog posts from Markdown files and sorts them by date.
 func LoadThoughtsPosts() ([]PostData, error) {
-	var posts []PostData
-
-	// Get all markdown files from the "thoughts" directory
-	files, err := filepath.Glob("thoughts/*.md")
-	if err != nil {
-		return nil, err
-	}
-
-	for _, file := range files {
-		post, err := LoadPostFromFile(file)
-		if err != nil {
-			return nil, err
-		}
-		posts = append(posts, post)
-	}
-
-	// Sort posts by date (latest first)
-	sort.Slice(posts, func(i, j int) bool {
-		return posts[i].Date.After(posts[j].Date)
-	})
-
-	return posts, nil
+	return loadPostsFromDirectory("thoughts/*.md")
 }
 
 // LoadMiscellaneousPosts loads miscellaneous blog posts from Markdown files and sorts them by date.
 func LoadMiscellaneousPosts() ([]PostData, error) {
-	var posts []PostData
-
-	// Get all markdown files from the "miscellaneous" directory
-	files, err := filepath.Glob("miscellaneous/*.md")
-	if err != nil {
-		return nil, err
-	}
-
-	for _, file := range files {
-		post, err := LoadPostFromFile(file)
-		if err != nil {
-			return nil, err
-		}
-		posts = append(posts, post)
-	}
-
-	// Sort posts by date (latest first)
-	sort.Slice(posts, func(i, j int) bool {
-		return posts[i].Date.After(posts[j].Date)
-	})
-
-	return posts, nil
+	return loadPostsFromDirectory("miscellaneous/*.md")
 }
 
 func main() {
@@ -389,6 +349,7 @@ type responseWriter struct {
 }
 
 func PostHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	slug := r.URL.Path[len("/post/"):]
 	post, err := LoadPost(slug)
 	if err != nil {
@@ -422,25 +383,46 @@ func LoadPost(slug string) (PostData, error) {
 	return LoadPostFromFile(file)
 }
 
-// HomeHandler renders the home page with blog posts.
-func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	posts, err := LoadBlogPosts()
+// postsHandler is a generic handler for rendering pages with blog posts.
+func postsHandler(w http.ResponseWriter, loadPosts func() ([]PostData, error), title, templateName string) {
+	posts, err := loadPosts()
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Error loading posts", http.StatusInternalServerError)
+		log.Printf("Error loading posts for %s: %v", title, err)
+		return
 	}
 
 	data := TemplateData{
-		Title: "Home",
+		Title: title,
 		Posts: posts,
 	}
 
-	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "base.gohtml"), filepath.Join("templates", "home.gohtml")))
+	tmpl := template.Must(template.ParseFiles(
+		filepath.Join("templates", "base.gohtml"),
+		filepath.Join("templates", templateName),
+	))
 	if err := tmpl.Execute(w, data); err != nil {
-		log.Fatal(err)
+		http.Error(w, "Error executing template", http.StatusInternalServerError)
+		log.Printf("Error executing template %s: %v", templateName, err)
+		return
 	}
 }
 
-// AboutHandler serves the About page.
+// HomeHandler renders the home page with blog posts.
+func HomeHandler(w http.ResponseWriter, r *http.Request) {
+	postsHandler(w, LoadBlogPosts, "Home", "home.gohtml")
+}
+
+// ThoughtsHandler renders the thoughts blog posts page.
+func ThoughtsHandler(w http.ResponseWriter, r *http.Request) {
+	postsHandler(w, LoadThoughtsPosts, "Thoughts", "thoughts.gohtml")
+}
+
+// MiscellaneousHandler renders the miscellaneous blog posts page.
+func MiscellaneousHandler(w http.ResponseWriter, r *http.Request) {
+	postsHandler(w, LoadMiscellaneousPosts, "Miscellaneous", "miscellaneous.gohtml")
+}
+
 // AboutHandler serves the About page.
 func AboutHandler(w http.ResponseWriter, r *http.Request) {
 	content, err := RenderMarkdown("nav/about.md")
@@ -459,41 +441,5 @@ func AboutHandler(w http.ResponseWriter, r *http.Request) {
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Error executing template", http.StatusInternalServerError)
 		return
-	}
-}
-
-// ThoughtsHandler renders the thoughts blog posts page.
-func ThoughtsHandler(w http.ResponseWriter, r *http.Request) {
-	posts, err := LoadThoughtsPosts()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	data := TemplateData{
-		Title: "Thoughts",
-		Posts: posts,
-	}
-
-	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "base.gohtml"), filepath.Join("templates", "thoughts.gohtml")))
-	if err := tmpl.Execute(w, data); err != nil {
-		log.Fatal(err)
-	}
-}
-
-// MiscellaneousHandler renders the miscellaneous blog posts page.
-func MiscellaneousHandler(w http.ResponseWriter, r *http.Request) {
-	posts, err := LoadMiscellaneousPosts()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	data := TemplateData{
-		Title: "Miscellaneous",
-		Posts: posts,
-	}
-
-	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "base.gohtml"), filepath.Join("templates", "miscellaneous.gohtml")))
-	if err := tmpl.Execute(w, data); err != nil {
-		log.Fatal(err)
 	}
 }
