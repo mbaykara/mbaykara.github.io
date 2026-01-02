@@ -1,14 +1,39 @@
-# OpenTelemetry Collector Core Distro
 
-This distribution contains all the components from the [OpenTelemetry Collector](https://github.com/open-telemetry/opentelemetry-collector) repository and a small selection of components tied to open source projects from the [OpenTelemetry Collector Contrib](https://github.com/open-telemetry/opentelemetry-collector-contrib) repository.
+# Personal Blog
 
-This distribution is considered "classic" and is no longer accepting new components outside of components from the Core repo.
+A minimalist Markdown-based blog built with Go.
 
-## Components
+## Features
 
-The full list of components is available in the [manifest](manifest.yaml)
+- Markdown-based posts with syntax highlighting
+- Static site generation for GitHub Pages
+- Dark terminal-inspired theme
 
-### Rules for Component Inclusion
+## Usage
 
-Since Core is a "classic" distribution its components are strictly limited to what currently exists in its [manifest](manifest.yaml) and any future components in Core.
-No other components from Contrib should be added.
+### Development Server
+
+```bash
+go run main.go
+```
+
+Server runs on `http://localhost:8090`
+
+### Generate Static Site
+
+```bash
+go run main.go --generate
+```
+
+Generates static HTML files in the `public/` directory.
+
+## Project Structure
+
+- `posts/` - Markdown blog posts
+- `nav/` - Navigation pages (about, contact)
+- `templates/` - Go HTML templates
+- `public/` - Generated static site (after running --generate)
+
+## Adding Posts
+
+Add Markdown files to the `posts/` directory. Posts are automatically discovered and sorted by modification date.
