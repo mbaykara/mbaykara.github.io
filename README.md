@@ -37,3 +37,29 @@ Generates static HTML files in the `public/` directory.
 ## Adding Posts
 
 Add Markdown files to the `posts/` directory. Posts are automatically discovered and sorted by modification date.
+
+## Markdown Format Checking
+
+This project includes markdown format checking to ensure consistent formatting across all markdown files.
+
+### Installation
+
+Install `markdownlint-cli2` globally:
+
+```bash
+npm install -g markdownlint-cli2
+```
+
+### Usage
+
+```bash
+# Check markdown files for formatting issues
+make markdownlint
+
+# Automatically fix markdown formatting issues
+make markdownlint-fix
+```
+
+### CI/CD
+
+Markdown linting runs automatically on all pushes and pull requests via GitHub Actions. The workflow checks all `.md` files in the repository using the configuration in `.markdownlint.json`.

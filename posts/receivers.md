@@ -139,7 +139,8 @@ otelcol.auth.basic "creds" {
     password = sys.env("<PASSWORD>")
 }
 ```
-2. TLS can be configured as needed. Please see [details](https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.otlp/#tls).
+
+1. TLS can be configured as needed. Please see [details](https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.otlp/#tls).
 
 Overall, constantly revisit your configuration over time and tweak it as needed.
 
