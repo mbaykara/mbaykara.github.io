@@ -110,8 +110,10 @@ the dashboard, `otelcol_receiver_refused_metric_points_total` goes up, and
 At the same time, the Prometheus pipeline that caused the problem is not slowed
 at all. `prometheus.remote_write` keeps sending 6,000 to 7,000 samples per
 second (about 250 kB/s) to the backend. So the pipeline at fault floods the
-backend, while the healthy pipeline starves. And because the heap still spikes
-near the memory limit, the collector also restarts a few times.
+backend, while the healthy pipeline starves. This run already had `GOMEMLIMIT`
+set, but the heap still spikes near the limit during each scrape, so the
+collector also restarts a few times. `GOMEMLIMIT` bounds the steady-state heap,
+not these sudden spikes.
 
 ![Slow cascade: OTLP drops to zero while Prometheus floods the backend](https://raw.githubusercontent.com/mbaykara/mbaykara.github.io/main/images/s2-graded-cascade.png)
 
@@ -133,19 +135,25 @@ env:
     value: "230MiB"   # about 90% of the 256Mi container limit
 ```
 
-  It is a soft limit, so it cannot stop one huge scrape spike on its own (see the
-  fast OOM above), and very aggressive garbage collection can raise CPU. So set
-  `GOMEMLIMIT` first, then add the limits below.
+  But it is necessary, not sufficient. It is a soft limit: it bounds the
+  steady-state heap by making garbage collection work harder, but it cannot stop
+  a sudden scrape spike. Both failures above still happened with `GOMEMLIMIT`
+  set. And very aggressive garbage collection can raise CPU. Treat it as the easy
+  baseline, then add the limits below.
 
-- **Limit the scrape.** `prometheus.scrape` supports `sample_limit`,
-  `label_limit`, and `body_size_limit`. A `sample_limit` fails a scrape that has
-  too many series, instead of loading all of them into memory.
+- **Limit the scrape.** `prometheus.scrape` supports `body_size_limit`,
+  `sample_limit`, and `label_limit`. These are not the same:
+  `body_size_limit` caps how many bytes Alloy reads from a target, so it limits
+  the memory used while reading a huge response. This is the one that helps
+  against the fast OOM above. `sample_limit` is checked only after the body is
+  parsed: it rejects a scrape with too many series, which protects the
+  remote-write queue and the backend, but it cannot stop the short parse spike.
 
 ```alloy
 prometheus.scrape "targets" {
-  sample_limit    = 50000
+  body_size_limit = "10MiB"   // caps bytes read -> limits the parse spike
+  sample_limit    = 50000     // rejects after parse -> protects queue + backend
   label_limit     = 30
-  body_size_limit = "10MiB"
 }
 ```
 
