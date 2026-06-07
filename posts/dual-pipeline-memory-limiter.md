@@ -164,8 +164,25 @@ prometheus.remote_write "cloud" {
 }
 ```
 
-- **Use Adaptive Metrics.** For series you do not need, drop them with Grafana
-  Cloud Adaptive Metrics instead of carrying them through the collector.
+- **Drop series before remote-write.** Use `prometheus.relabel` to keep only the
+  series you need (with a `keep` or `drop` action) before they reach the
+  remote-write queue. This lowers how much the queue and the WAL hold in
+  collector memory. The scrape still loads everything for a short moment, so use
+  this together with `sample_limit`.
+
+```alloy
+prometheus.relabel "keep_needed" {
+  rule {
+    source_labels = ["__name__"]
+    regex         = "go_.*|process_.*|up"
+    action        = "keep"
+  }
+}
+```
+
+  Note: Grafana Cloud Adaptive Metrics also reduces cardinality, but it runs in
+  the backend after the collector sends the data. So it lowers storage and cost,
+  not collector memory.
 
 - **Split the collectors.** The safest option is to run the noisy Prometheus
   scraping in its own collector, with its own memory budget. Then a cardinality
