@@ -117,9 +117,25 @@ near the memory limit, the collector also restarts a few times.
 
 ## How to protect the Prometheus path
 
-The Prometheus pipeline has its own controls. None of them is a process-wide
-memory limiter. But together they stop one noisy target from killing the
-collector.
+The Prometheus pipeline has its own controls. Together they stop one noisy
+target from killing the collector.
+
+- **Set `GOMEMLIMIT` (the most convenient option).** Unlike the memory limiter,
+  which only sees the OTLP pipeline, `GOMEMLIMIT` is a Go runtime setting for the
+  whole process. As the heap nears the limit, the garbage collector works harder
+  and frees memory for both pipelines, including the Prometheus path. It is the
+  single easiest knob: one environment variable, set a bit below the container
+  limit (about 90 percent).
+
+```yaml
+env:
+  - name: GOMEMLIMIT
+    value: "230MiB"   # about 90% of the 256Mi container limit
+```
+
+  It is a soft limit, so it cannot stop one huge scrape spike on its own (see the
+  fast OOM above), and very aggressive garbage collection can raise CPU. So set
+  `GOMEMLIMIT` first, then add the limits below.
 
 - **Limit the scrape.** `prometheus.scrape` supports `sample_limit`,
   `label_limit`, and `body_size_limit`. A `sample_limit` fails a scrape that has
