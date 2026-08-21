@@ -7,127 +7,150 @@ date: 2026-06-07T10:00:00Z
 
 ## One collector, two pipelines, one memory
 
-In [Part II](https://robustinfra.de/post/memory_limiter) we added the
+In [Part II](https://robustinfra.de/post/memory_limiter) we added
 `otelcol.processor.memory_limiter` to protect the collector from running out of
-memory. That post used the percentage settings (`limit_percentage = 80`). I need
-to correct that advice, and show a second, bigger problem.
+memory, and I recommended the percentage settings (`limit_percentage = 80`). We
+potentially miss some important nuance there. And while testing this, I ran into
+a second problem that turned out to be the more interesting one.
 
-You can run two pipelines in one Grafana Alloy collector. One pipeline takes
-OpenTelemetry (OTLP) data. The other scrapes Prometheus metrics. This looks
-nice: one deployment, one set of credentials, one thing to run.
+Here is the setup. Grafana Alloy lets you run two pipelines in a single
+collector: one receiving OpenTelemetry (OTLP) data, the other scraping
+Prometheus metrics. It is a tempting layout: one deployment, one thing to
+operate, one config to maintain.
 
-But there is a hidden risk. The memory limiter protects only the OTLP pipeline.
-It does nothing for the Prometheus pipeline. And both pipelines use the same
-memory. So when the Prometheus side uses too much memory, it either starves the
-healthy OTLP pipeline or kills the whole collector.
+The catch is that the memory limiter only protects the OTLP pipeline. The
+Prometheus pipeline runs right past it, and both share the same process memory.
+So when the Prometheus side misbehaves, one of two things happens: it starves
+the OTLP pipeline that was doing nothing wrong, or it takes down the whole
+collector.
 
-This post shows both problems on a small kind cluster that sends data to Grafana
-Cloud. Then it shows how to fix the Prometheus side.
+I reproduced both failures on a small kind cluster sending data to Grafana
+Cloud, and I will walk through them below, along with what actually helps on the
+Prometheus side.
 
-## First, fix the percentage setting
+## First, the correction
 
-Part II suggested `limit_percentage = 80`. There is a trap here. The percentage
-setting looks at the total memory of the host or node. It does not look at the
-container memory limit.
+Part II suggested `limit_percentage = 80`. The trap: the percentage is
+calculated against the total memory of the host or node, not against the
+container's memory limit.
 
-Inside a 256 MiB pod on a large node, "80 percent" means several gigabytes. So
-Kubernetes kills the pod long before the limiter starts. In a container, always
-use fixed sizes, set below the container limit:
+Think about what that means inside a 256 MiB pod running on a large node.
+"80 percent" resolves to several gigabytes, a number the pod will never be
+allowed to reach. Kubernetes kills it long before the limiter would ever kick
+in. So in a container, use fixed sizes, set below the container limit:
 
 ```alloy
 otelcol.processor.memory_limiter "guard" {
   check_interval = "1s"
   limit          = "180MiB"   // hard limit, below the 256Mi container limit
   spike_limit    = "40MiB"    // soft limit = 180 - 40 = 140MiB
+
   output { ... }
 }
 ```
 
 ## What memory_limiter can and cannot reach
 
-Every second, the limiter checks the memory the process uses. If memory is too
-high, it starts to refuse new data. "Refuse" means it returns an error to the
-OTLP receiver in front of it, which then tells the sender to slow down. So the
-limiter has only one tool: it pushes back on data that goes through the
-OpenTelemetry pipeline.
+It helps to be precise about what this processor actually does. Once per second
+it checks how much memory the process is using. If usage is too high, it starts
+refusing new data. Refusing means it returns an error to the OTLP receiver in
+front of it, which in turn tells the sender to back off. That is the entire
+mechanism. Its only tool is pushback, and pushback only works on data flowing
+through the OpenTelemetry pipeline.
 
-The Prometheus pipeline is separate: `prometheus.scrape` collects samples,
-`prometheus.relabel` changes them, and `prometheus.remote_write` sends them out.
-This data never goes through the OpenTelemetry pipeline. So the limiter cannot
-refuse, drop, or slow it. There is no memory limiter on the Prometheus side.
+The Prometheus pipeline never enters that pipeline. `prometheus.scrape` collects
+samples, `prometheus.relabel` rewrites them, `prometheus.remote_write` ships
+them out. None of it passes a point where the limiter could refuse, drop, or
+slow anything. There simply is no memory limiter on the Prometheus side.
 
-But both pipelines run in one process and share one memory (one Go heap). Every
-series the scraper loads, and every batch the remote-write queue holds, uses the
-same memory the limiter measures. So the limiter sees the pressure, but it
-cannot fix the cause. It can only slow the OTLP pipeline. The pipeline that
-caused the problem keeps running. The pipeline that did nothing wrong gets
-punished.
+Both pipelines still run in one process, though, with one Go heap between them.
+Every series the scraper loads and every batch sitting in the remote-write queue
+counts toward the same number the limiter is watching. The limiter sees the
+pressure fine. It just cannot do anything about the cause. All it can do is
+throttle the OTLP side, so the pipeline that created the problem keeps running
+while the innocent one gets punished.
 
 ## Reproducing it
 
-The test is a kind cluster with one Alloy deployment that runs both pipelines.
-It uses two load generators: `telemetrygen` sends a steady, healthy OTLP stream,
-and `avalanche` is a Prometheus cardinality bomb that we can tune. Both pipelines
-send to Grafana Cloud. Alloy also scrapes its own metrics, so we can watch the
-failure on a dashboard.
+My test setup: a kind cluster with a single Alloy deployment running both
+pipelines, plus two load generators. `telemetrygen` provides a steady, healthy
+OTLP stream. `avalanche` acts as a tunable Prometheus cardinality bomb.
+Everything ships to Grafana Cloud, and Alloy scrapes its own metrics so the
+failure shows up on a dashboard.
 
-There are two scenarios. They differ only in how hard we push the Prometheus
-path and how much memory the container has.
+I ran two scenarios. The only differences between them are how hard avalanche
+pushes and how much memory the container gets.
 
 ## Problem one: the fast OOM (limiter is skipped)
 
-Container limit: 256 MiB. avalanche serves about 400,000 series.
+Container limit: 256 MiB. avalanche serving roughly 400,000 series.
 
-On each scrape, Alloy must load and parse all those series into memory at once.
-This pushes the heap to about 410 MiB in less than one second. That is faster
-than the limiter's one-second check. So Kubernetes sees the container go over
-its limit and kills it (exit code 137) before the limiter even runs. The pod
-keeps crashing and restarting.
+On each scrape, Alloy has to load and parse all of those series into memory at
+once, which shoves the heap to around 410 MiB in under a second, faster than the
+limiter's one-second check interval. The Linux kernel notices the container
+blowing through its memory limit and kills it (exit code 137) before the limiter
+ever runs. Kubernetes reports the pod as `OOMKilled`, restarts it, and the cycle
+repeats.
 
 ```text
 lastTerminatedReason = OOMKilled   exitCode = 137   restarts keep rising
 otelcol_receiver_refused_metric_points_total = 0   (the limiter never ran)
 ```
 
-Here the limiter is not protecting the wrong pipeline. It is skipped completely.
-And it gets worse: when the collector dies, it also stops sending its own
-metrics. So the metrics you need to understand the problem disappear. A
-collector that runs out of memory goes blind while it falls.
+Notice the limiter is not protecting the wrong pipeline here. It is skipped
+entirely. And honestly, even if its check had fired in time, it would not have
+mattered: the limiter can only refuse data at the OTLP receiver. It has no lever
+on a scrape that is already being read and parsed.
+
+There is a nasty side effect too. When the collector dies, it stops sending its
+own metrics, so exactly the data you would want for diagnosing the problem
+disappears with it. A collector that runs out of memory goes blind while it
+falls.
 
 ![Fast OOM: the limiter is skipped and the collector keeps crashing](https://raw.githubusercontent.com/mbaykara/mbaykara.github.io/main/images/s2-blunt-oom.png)
 
 ## Problem two: the slow cascade (limiter starves the healthy pipeline)
 
-Now give the container more room (1 GiB), so the limiter, not Kubernetes, is the
-real limit. Use a steady load of about 40,000 series.
+For the second scenario I gave the container more room, 1 GiB, so that the
+limiter, not Kubernetes, becomes the effective limit. avalanche now serves a
+steady 40,000 series. I deliberately kept the limiter at `limit = "180MiB"` from
+the previous scenario. That obviously does not match a 1 GiB container, but that
+is the point: the heap will sit permanently above the hard limit, which lets us
+watch what the limiter does when it is always on.
 
-The heap now rises and stays between about 256 and 900 MiB. That is well above
-the 180 MiB hard limit. So the limiter does its job: it refuses OTLP data. On
-the dashboard, `otelcol_receiver_refused_metric_points_total` goes up, and
+The heap climbs and settles somewhere between 256 and 900 MiB. Worth pausing on
+that number, because 40,000 series alone do not need anywhere near that much.
+The rest is everything around them: parse buffers allocated on each scrape, the
+remote-write queue and its shards, the WAL being replayed after each restart,
+and heap the Go runtime has not returned yet.
+
+Either way, it is far above the 180 MiB hard limit, so the limiter does exactly
+what it is built to do: it refuses OTLP data. On the dashboard,
+`otelcol_receiver_refused_metric_points_total` climbs while
 `otelcol_receiver_accepted_metric_points_total` drops to zero. The healthy
-`telemetrygen` stream is now being dropped.
+`telemetrygen` stream is being dropped on the floor.
 
-At the same time, the Prometheus pipeline that caused the problem is not slowed
-at all. `prometheus.remote_write` keeps sending 6,000 to 7,000 samples per
-second (about 250 kB/s) to the backend. So the pipeline at fault floods the
-backend, while the healthy pipeline starves. This run already had `GOMEMLIMIT`
-set, but the heap still spikes near the limit during each scrape, so the
-collector also restarts a few times. `GOMEMLIMIT` bounds the steady-state heap,
-not these sudden spikes.
+Meanwhile the Prometheus pipeline, the one causing all of this, is not slowed at
+all. `prometheus.remote_write` keeps pushing 6,000 to 7,000 samples per second
+(about 250 kB/s) to the backend. The pipeline at fault floods the backend; the
+healthy one starves. This run already had `GOMEMLIMIT` set, by the way, and the
+heap still spiked near the limit on each scrape, so the collector restarted a
+few times regardless. `GOMEMLIMIT` bounds the steady-state heap. It does nothing
+for these sudden spikes.
 
 ![Slow cascade: OTLP drops to zero while Prometheus floods the backend](https://raw.githubusercontent.com/mbaykara/mbaykara.github.io/main/images/s2-graded-cascade.png)
 
 ## How to protect the Prometheus path
 
-The Prometheus pipeline has its own controls. Together they stop one noisy
-target from killing the collector.
+The Prometheus pipeline has its own controls, and combined they keep one noisy
+target from taking the collector down.
 
 - **Set `GOMEMLIMIT` (the most convenient option).** Unlike the memory limiter,
-  which only sees the OTLP pipeline, `GOMEMLIMIT` is a Go runtime setting for the
-  whole process. As the heap nears the limit, the garbage collector works harder
-  and frees memory for both pipelines, including the Prometheus path. It is the
-  single easiest knob: one environment variable, set a bit below the container
-  limit (about 90 percent).
+  which only sees the OTLP pipeline, `GOMEMLIMIT` is a Go runtime setting that
+  covers the whole process. As the heap approaches the limit, the garbage
+  collector works harder and frees memory for both pipelines, Prometheus path
+  included. One environment variable, set a bit below the container limit
+  (around 90 percent):
 
 ```yaml
 env:
@@ -135,19 +158,19 @@ env:
     value: "230MiB"   # about 90% of the 256Mi container limit
 ```
 
-  But it is necessary, not sufficient. It is a soft limit: it bounds the
-  steady-state heap by making garbage collection work harder, but it cannot stop
-  a sudden scrape spike. Both failures above still happened with `GOMEMLIMIT`
-  set. And very aggressive garbage collection can raise CPU. Treat it as the easy
-  baseline, then add the limits below.
+  Necessary, but not sufficient. It is a soft limit: it holds the steady-state
+  heap down by making GC more aggressive, but it cannot stop a sudden scrape
+  spike, and both failures above happened with it set. Very aggressive GC also
+  costs CPU. Treat it as the baseline and add the limits below on top.
 
 - **Limit the scrape.** `prometheus.scrape` supports `body_size_limit`,
-  `sample_limit`, and `label_limit`. These are not the same:
-  `body_size_limit` caps how many bytes Alloy reads from a target, so it limits
-  the memory used while reading a huge response. This is the one that helps
-  against the fast OOM above. `sample_limit` is checked only after the body is
-  parsed: it rejects a scrape with too many series, which protects the
-  remote-write queue and the backend, but it cannot stop the short parse spike.
+  `sample_limit`, and `label_limit`, and they are not interchangeable.
+  `body_size_limit` caps how many bytes Alloy will read from a target, which
+  bounds the memory used while ingesting a huge response. This is the one that
+  helps against the fast OOM above. `sample_limit` is only checked after the
+  body is parsed: it rejects scrapes with too many series, which protects the
+  remote-write queue and the backend, but does nothing for the short parse
+  spike.
 
 ```alloy
 prometheus.scrape "targets" {
@@ -158,7 +181,8 @@ prometheus.scrape "targets" {
 ```
 
 - **Limit the remote-write queue.** `queue_config` (capacity, max shards)
-  controls how much remote-write keeps in memory when the backend is slow.
+  controls how much remote-write is allowed to hold in memory when the backend
+  is slow.
 
 ```alloy
 prometheus.remote_write "cloud" {
@@ -172,11 +196,11 @@ prometheus.remote_write "cloud" {
 }
 ```
 
-- **Drop series before remote-write.** Use `prometheus.relabel` to keep only the
-  series you need (with a `keep` or `drop` action) before they reach the
-  remote-write queue. This lowers how much the queue and the WAL hold in
-  collector memory. The scrape still loads everything for a short moment, so use
-  this together with `sample_limit`.
+- **Drop series before remote-write.** Use `prometheus.relabel` with a `keep` or
+  `drop` action so only the series you actually need reach the remote-write
+  queue. That shrinks what the queue and the WAL hold in collector memory. The
+  scrape still loads everything for a brief moment, so pair this with
+  `sample_limit`.
 
 ```alloy
 prometheus.relabel "keep_needed" {
@@ -188,22 +212,23 @@ prometheus.relabel "keep_needed" {
 }
 ```
 
-  Note: Grafana Cloud Adaptive Metrics also reduces cardinality, but it runs in
-  the backend after the collector sends the data. So it lowers storage and cost,
-  not collector memory.
+  One note here: Grafana Cloud Adaptive Metrics also reduces cardinality, but it
+  runs in the backend, after the collector has already sent the data. It lowers
+  storage and cost, not collector memory.
 
-- **Split the collectors.** The safest option is to run the noisy Prometheus
-  scraping in its own collector, with its own memory budget. Then a cardinality
-  spike there cannot starve or kill the OTLP pipeline that shares its memory
-  today.
+- **Split the collectors.** The safest option of all: run the noisy Prometheus
+  scraping in its own collector with its own memory budget. A cardinality spike
+  there can no longer starve or kill an OTLP pipeline it does not share memory
+  with.
 
 ## Summary
 
 `otelcol.processor.memory_limiter` protects one pipeline, not the whole process.
-In a mixed collector it can only slow the OpenTelemetry side, even when the
-Prometheus side is the real cause. And with a small container limit, it does not
+In a mixed collector it can only throttle the OpenTelemetry side, even when the
+Prometheus side is the real cause. And with a small container limit it does not
 even get the chance to run.
 
 If you run both pipelines in one Alloy collector, give the Prometheus path its
 own limits, or give it its own collector. Do not expect the memory limiter to
 cover the Prometheus side. It never did.
+</content>

@@ -11,6 +11,8 @@ In our previous [post](https://robustinfra.de/post/receivers), we set up the fro
 
 Specifically, we are deep diving into the [Memory Limiter Processor](https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md#memory-limiter-processor) (`otelcol.processor.memory_limiter`).
 
+> Update: [Part III](https://robustinfra.de/post/dual-pipeline-memory-limiter) corrects two things in this post. The percentage settings below measure the memory of the host or node, not the container limit, so in Kubernetes you should use fixed `limit` and `spike_limit` values. And the limiter only protects the OpenTelemetry pipeline: if the same collector also scrapes Prometheus targets, that path needs its own limits.
+
 ## The Well-Known `OOMKilled`
 
 If you manage Kubernetes workloads, you are likely familiar with the `OOMKilled` status.
